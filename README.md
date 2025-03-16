@@ -1,4 +1,4 @@
-# MCParr Server
+# MCP Radarr and Sonarr Server
 
 An MCP server that integrates with Radarr and Sonarr to manage your media library.
 
