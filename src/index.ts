@@ -65,22 +65,30 @@ const server = new Server(
 );
 
 // Helper functions for API calls
-async function getRadarrMovies(filters?: { year?: number; genre?: string }) {
+async function getRadarrMovies(filters?: { year?: number; genre?: string; title?: string }) {
   try {
-    const response = await axios.get(`${config.radarr.url}/api/v3/movie`, {
-      headers: { 'X-Api-Key': config.radarr.apiKey },
-    });
-    let movies = response.data;
+    let movies;
 
-    if (filters) {
-      if (filters.year) {
-        movies = movies.filter((m: any) => m.year === filters.year);
-      }
-      if (filters.genre) {
-        movies = movies.filter((m: any) => 
-          m.genres.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
-        );
-      }
+    if (filters?.title) {
+      const response = await axios.get(`${config.radarr.url}/api/v3/movie/lookup`, {
+        params: { term: filters.title },
+        headers: { 'X-Api-Key': config.radarr.apiKey },
+      });
+      movies = response.data;
+    } else {
+      const response = await axios.get(`${config.radarr.url}/api/v3/movie`, {
+        headers: { 'X-Api-Key': config.radarr.apiKey },
+      });
+      movies = response.data;
+    }
+
+    if (filters?.year) {
+      movies = movies.filter((m: any) => m.year === filters.year);
+    }
+    if (filters?.genre) {
+      movies = movies.filter((m: any) =>
+        m.genres.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
+      );
     }
 
     return movies;
@@ -90,22 +98,30 @@ async function getRadarrMovies(filters?: { year?: number; genre?: string }) {
   }
 }
 
-async function getSonarrSeries(filters?: { year?: number; genre?: string }) {
+async function getSonarrSeries(filters?: { year?: number; genre?: string; title?: string }) {
   try {
-    const response = await axios.get(`${config.sonarr.url}/api/v3/series`, {
-      headers: { 'X-Api-Key': config.sonarr.apiKey },
-    });
-    let series = response.data;
+    let series;
 
-    if (filters) {
-      if (filters.year) {
-        series = series.filter((s: any) => s.year === filters.year);
-      }
-      if (filters.genre) {
-        series = series.filter((s: any) => 
-          s.genres.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
-        );
-      }
+    if (filters?.title) {
+      const response = await axios.get(`${config.sonarr.url}/api/v3/series/lookup`, {
+        params: { term: filters.title },
+        headers: { 'X-Api-Key': config.sonarr.apiKey },
+      });
+      series = response.data;
+    } else {
+      const response = await axios.get(`${config.sonarr.url}/api/v3/series`, {
+        headers: { 'X-Api-Key': config.sonarr.apiKey },
+      });
+      series = response.data;
+    }
+
+    if (filters?.year) {
+      series = series.filter((s: any) => s.year === filters.year);
+    }
+    if (filters?.genre) {
+      series = series.filter((s: any) =>
+        s.genres.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
+      );
     }
 
     return series;
@@ -242,7 +258,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             genre: {
               type: "string",
               description: "Filter by genre"
+            },
+            title: {
+              type: "string",
+              description: "Optional title to search by"
             }
+
           },
           required: ["mediaType"]
         }
@@ -308,20 +329,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case "search_media": {
-      const { mediaType, year, genre } = request.params.arguments as any;
-      const filters = { year, genre };
-      
-      const results = mediaType === "movie" 
-        ? await getRadarrMovies(filters)
-        : await getSonarrSeries(filters);
+    const { mediaType, year, genre, title } = request.params.arguments as any;
+    const filters = { year, genre, title };
 
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(results, null, 2)
-        }]
-      };
-    }
+    const results = mediaType === "movie"
+      ? await getRadarrMovies(filters)
+      : await getSonarrSeries(filters);
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(results, null, 2)
+      }]
+    };
+  }
 
     case "request_download": {
       const { mediaType, id } = request.params.arguments as any;
