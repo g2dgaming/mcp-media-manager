@@ -255,11 +255,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            mediaType: { type: "string", enum: ["movie", "series"] },
-            year: { type: "number" },
-            genre: { type: "string" },
-            title: { type: "string" },
-            limit: { type: "number" }
+            mediaType: {
+              type: "string",
+              enum: ["movie", "series"],
+              description: "Type of media to search for: 'movie' or 'series'"
+            },
+            year: {
+              type: "number",
+              description: "Release year of the media. Helps narrow down the search."
+            },
+            genre: {
+              type: "string",
+              description: "Genre of the media (e.g., 'action', 'drama', 'comedy'). Helps filter results."
+            },
+            title: {
+              type: "string",
+              description: "Optional title or partial title to search for a specific media."
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number of results to return."
+            }
           },
           required: ["mediaType"]
         }
