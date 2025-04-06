@@ -343,7 +343,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "search_media": {
     const { mediaType, year, genre, title,limit } = request.params.arguments as any;
     const filters = { year, genre, title,limit };
-
+    if(!filters.limit){
+      filters.limit=5;
+    }
     const results = mediaType === "movie"
       ? await getRadarrMovies(filters)
       : await getSonarrSeries(filters);
