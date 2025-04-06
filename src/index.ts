@@ -326,8 +326,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case "search_media": {
-    const { mediaType, year, genre, title } = request.params.arguments as any;
-    const filters = { year, genre, title };
+    const { mediaType, year, genre, title,limit } = request.params.arguments as any;
+    const filters = { year, genre, title,limit };
 
     const results = mediaType === "movie"
       ? await getRadarrMovies(filters)
