@@ -64,77 +64,109 @@ const server = new Server(
   }
 );
 
-// Helper functions for API calls
-async function getRadarrMovies(filters?: { year?: number; genre?: string; title?: string; limit?: number }) {
+type FilterOptions = {
+  year?: number;
+  genre?: string;
+  title?: string;
+  limit?: number;
+};
+
+// 🔧 Reusable filter logic
+function applyFilters<T extends { year?: number; genres?: string[] }>(
+  items: T[],
+  filters?: FilterOptions
+): T[] {
+  if (!filters) return items;
+
+  let result = [...items];
+
+  if (filters.year) {
+    result = result.filter(item => item.year === filters.year);
+  }
+
+  if (filters.genre) {
+    result = result.filter(item =>
+      item.genres?.some(g => g.toLowerCase() === filters.genre?.toLowerCase())
+    );
+  }
+
+  if (filters.limit && result.length > filters.limit) {
+    result = result.slice(0, filters.limit);
+  }
+
+  return result;
+}
+
+// 🎯 Reduce Radarr movie fields for AI consumption
+function reduceMovieData(movie: any) {
+  return {
+    title: movie.title,
+    originalTitle: movie.originalTitle,
+    year: movie.year,
+    id:movie.id,
+    runtime: movie.runtime,
+    status: movie.status,
+    monitored: movie.monitored,
+    isAvailable: movie.isAvailable,
+    genres: movie.genres,
+    studio: movie.studio,
+    overview: movie.overview,
+    certification: movie.certification,
+    releaseDate: movie.releaseDate,
+    imdbId: movie.imdbId,
+    tmdbId: movie.tmdbId,
+    popularity: movie.popularity,
+  };
+}
+
+// 📺 Reduce Sonarr series fields for AI consumption
+function reduceSeriesData(series: any) {
+  return {
+    title: series.title,
+    id:series.id,
+    originalTitle: series.originalTitle,
+    year: series.year,
+    runtime: series.runtime,
+    status: series.status,
+    monitored: series.monitored,
+    isAvailable: series.isAvailable,
+    genres: series.genres,
+    studio: series.studio,
+    overview: series.overview,
+    certification: series.certification,
+    releaseDate: series.firstAired,
+    imdbId: series.imdbId,
+    tvdbId: series.tvdbId,
+    popularity: series.popularity,
+  };
+}
+
+// 🎬 Get movies from Radarr
+export async function getRadarrMovies(filters?: FilterOptions) {
   try {
-    let movies = [];
+    const endpoint = filters?.title ? '/api/v3/movie/lookup' : '/api/v3/movie';
+    const response = await axios.get(`${config.radarr.url}${endpoint}`, {
+      headers: { 'X-Api-Key': config.radarr.apiKey },
+      params: filters?.title ? { term: filters.title } : undefined,
+    });
 
-    if (filters?.title) {
-      const response = await axios.get(`${config.radarr.url}/api/v3/movie/lookup`, {
-        headers: { 'X-Api-Key': config.radarr.apiKey },
-        params: { term: filters.title }
-      });
-      movies = response.data;
-    } else {
-      const response = await axios.get(`${config.radarr.url}/api/v3/movie`, {
-        headers: { 'X-Api-Key': config.radarr.apiKey }
-      });
-      movies = response.data;
-    }
-
-    if (filters) {
-      if (filters.year) {
-        movies = movies.filter((m: any) => m.year === filters.year);
-      }
-      if (filters.genre) {
-        movies = movies.filter((m: any) =>
-          m.genres?.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
-        );
-      }
-      if (filters.limit && movies.length > filters.limit) {
-        movies = movies.slice(0, filters.limit);
-      }
-    }
-
-    return movies;
+    return applyFilters(response.data, filters).map(reduceMovieData);
   } catch (error) {
     console.error('Error fetching Radarr movies:', error);
     throw error;
   }
 }
 
-async function getSonarrSeries(filters?: { year?: number; genre?: string; title?: string; limit?: number }) {
+// 📺 Get series from Sonarr
+export async function getSonarrSeries(filters?: FilterOptions) {
   try {
-    let series = [];
+    const endpoint = filters?.title ? '/api/v3/series/lookup' : '/api/v3/series';
+    const response = await axios.get(`${config.sonarr.url}${endpoint}`, {
+      headers: { 'X-Api-Key': config.sonarr.apiKey },
+      params: filters?.title ? { term: filters.title } : undefined,
+    });
 
-    if (filters?.title) {
-      const response = await axios.get(`${config.sonarr.url}/api/v3/series/lookup`, {
-        headers: { 'X-Api-Key': config.sonarr.apiKey },
-        params: { term: filters.title }
-      });
-      series = response.data;
-    } else {
-      const response = await axios.get(`${config.sonarr.url}/api/v3/series`, {
-        headers: { 'X-Api-Key': config.sonarr.apiKey }
-      });
-      series = response.data;
-    }
-
-    if (filters) {
-      if (filters.year) {
-        series = series.filter((s: any) => s.year === filters.year);
-      }
-      if (filters.genre) {
-        series = series.filter((s: any) =>
-          s.genres?.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
-        );
-      }
-      if (filters.limit && series.length > filters.limit) {
-        series = series.slice(0, filters.limit);
-      }
-    }
-
-    return series;
+    return applyFilters(response.data, filters).map(reduceSeriesData);
   } catch (error) {
     console.error('Error fetching Sonarr series:', error);
     throw error;
@@ -344,7 +376,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { mediaType, year, genre, title,limit } = request.params.arguments as any;
     const filters = { year, genre, title,limit };
     if(!filters.limit){
-      filters.limit=5;
+      filters.limit=10;
     }
     const results = mediaType === "movie"
       ? await getRadarrMovies(filters)
