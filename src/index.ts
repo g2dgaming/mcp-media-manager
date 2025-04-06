@@ -221,7 +221,6 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const url = new URL(request.params.uri);
   const [type, mediaType, id] = url.pathname.split('/').filter(Boolean);
-  
   let content;
   if (type === 'radarr' && mediaType === 'movie') {
     const response = await axios.get(`${config.radarr.url}/api/v3/movie/${id}`, {
