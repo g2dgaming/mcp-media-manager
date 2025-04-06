@@ -65,30 +65,35 @@ const server = new Server(
 );
 
 // Helper functions for API calls
-async function getRadarrMovies(filters?: { year?: number; genre?: string; title?: string }) {
+async function getRadarrMovies(filters?: { year?: number; genre?: string; title?: string; limit?: number }) {
   try {
-    let movies;
+    let movies = [];
 
     if (filters?.title) {
       const response = await axios.get(`${config.radarr.url}/api/v3/movie/lookup`, {
-        params: { term: filters.title },
         headers: { 'X-Api-Key': config.radarr.apiKey },
+        params: { term: filters.title }
       });
       movies = response.data;
     } else {
       const response = await axios.get(`${config.radarr.url}/api/v3/movie`, {
-        headers: { 'X-Api-Key': config.radarr.apiKey },
+        headers: { 'X-Api-Key': config.radarr.apiKey }
       });
       movies = response.data;
     }
 
-    if (filters?.year) {
-      movies = movies.filter((m: any) => m.year === filters.year);
-    }
-    if (filters?.genre) {
-      movies = movies.filter((m: any) =>
-        m.genres.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
-      );
+    if (filters) {
+      if (filters.year) {
+        movies = movies.filter((m: any) => m.year === filters.year);
+      }
+      if (filters.genre) {
+        movies = movies.filter((m: any) =>
+          m.genres?.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
+        );
+      }
+      if (filters.limit && movies.length > filters.limit) {
+        movies = movies.slice(0, filters.limit);
+      }
     }
 
     return movies;
@@ -98,30 +103,35 @@ async function getRadarrMovies(filters?: { year?: number; genre?: string; title?
   }
 }
 
-async function getSonarrSeries(filters?: { year?: number; genre?: string; title?: string }) {
+async function getSonarrSeries(filters?: { year?: number; genre?: string; title?: string; limit?: number }) {
   try {
-    let series;
+    let series = [];
 
     if (filters?.title) {
       const response = await axios.get(`${config.sonarr.url}/api/v3/series/lookup`, {
-        params: { term: filters.title },
         headers: { 'X-Api-Key': config.sonarr.apiKey },
+        params: { term: filters.title }
       });
       series = response.data;
     } else {
       const response = await axios.get(`${config.sonarr.url}/api/v3/series`, {
-        headers: { 'X-Api-Key': config.sonarr.apiKey },
+        headers: { 'X-Api-Key': config.sonarr.apiKey }
       });
       series = response.data;
     }
 
-    if (filters?.year) {
-      series = series.filter((s: any) => s.year === filters.year);
-    }
-    if (filters?.genre) {
-      series = series.filter((s: any) =>
-        s.genres.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
-      );
+    if (filters) {
+      if (filters.year) {
+        series = series.filter((s: any) => s.year === filters.year);
+      }
+      if (filters.genre) {
+        series = series.filter((s: any) =>
+          s.genres?.some((g: string) => g.toLowerCase() === filters.genre?.toLowerCase())
+        );
+      }
+      if (filters.limit && series.length > filters.limit) {
+        series = series.slice(0, filters.limit);
+      }
     }
 
     return series;
@@ -246,24 +256,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            mediaType: {
-              type: "string",
-              enum: ["movie", "series"],
-              description: "Type of media to search for"
-            },
-            year: {
-              type: "number",
-              description: "Filter by year"
-            },
-            genre: {
-              type: "string",
-              description: "Filter by genre"
-            },
-            title: {
-              type: "string",
-              description: "Optional title to search by"
-            }
-
+            mediaType: { type: "string", enum: ["movie", "series"] },
+            year: { type: "number" },
+            genre: { type: "string" },
+            title: { type: "string" },
+            limit: { type: "number" }
           },
           required: ["mediaType"]
         }
