@@ -100,10 +100,10 @@ function applyFilters<T extends { year?: number; genres?: string[] }>(
 // 🎯 Reduce Radarr movie fields for AI consumption
 function reduceMovieData(movie: any) {
   return {
+    id:movie.id,
     title: movie.title,
     originalTitle: movie.originalTitle,
     year: movie.year,
-    id:movie.id,
     runtime: movie.runtime,
     status: movie.status,
     monitored: movie.monitored,
@@ -252,20 +252,23 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 // Read specific resource details
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const url = new URL(request.params.uri);
-  const [type, mediaType, id] = url.pathname.split('/').filter(Boolean);
+  const type = url.protocol.replace(':', '');
+  const response = url.pathname.split('/').filter(Boolean);
+  const id = url.pathname.split('/').filter(Boolean);
+  const mediaType=url.hostname;
   let content;
-  if (type === 'radarr' && mediaType === 'movie') {
+  if (type == "radarr" && mediaType === 'movie') {
     const response = await axios.get(`${config.radarr.url}/api/v3/movie/${id}`, {
       headers: { 'X-Api-Key': config.radarr.apiKey },
     });
     content = response.data;
-  } else if (type === 'sonarr' && mediaType === 'series') {
+  } else if ( type == "sonarr" && mediaType === 'series') {
     const response = await axios.get(`${config.sonarr.url}/api/v3/series/${id}`, {
       headers: { 'X-Api-Key': config.sonarr.apiKey },
     });
     content = response.data;
   } else {
-    throw new Error(`Invalid resource type: ${type}`);
+    throw new Error(`Invalid resource type ${type} mediaType :  ${mediaType} id ${id}`);
   }
 
   return {
@@ -364,6 +367,36 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["system"]
         }
+      },
+      {
+        name: "get_activity",
+        description: "Get the current download queue of Radarr or Sonarr, including ongoing downloads or pending activity.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            service: {
+              type: "string",
+              enum: ["radarr", "sonarr"],
+              description: "Which service to check activity 'radarr' for movies , 'sonarr' for series"
+            }
+          },
+          required: ["service"]
+        }
+      },
+      {
+        name: "get_wanted",
+        description: "List missing (wanted) movies or TV series",
+        inputSchema: {
+          type: "object",
+          properties: {
+            service: {
+              type: "string",
+              enum: ["radarr", "sonarr"],
+              description: "Which system to get wanted media from"
+            }
+          },
+          required: ["service"]
+        }
       }
     ]
   };
@@ -389,10 +422,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }]
     };
   }
+    case "get_wanted":{
+            const { service } = request.params.arguments as any;
+            const endpoint = service === "radarr"
+      ? `${config.radarr.url}/api/v3/wanted/missing`
+      : `${config.sonarr.url}/api/v3/wanted/missing`;
+    if(service != "radarr" && service != "sonarr")
+    {
+      throw new Error("Service can either be 'sonarr' or 'radarr'");
+    }
+    const apiKey = service === "radarr"
+      ? config.radarr.apiKey
+      : config.sonarr.apiKey;
 
+    const response = await axios.get(endpoint, {
+      headers: { 'X-Api-Key': apiKey }
+    });
+
+    const missingItems = response.data.records;
+
+    if (missingItems.length === 0) {
+      return {
+        content: [{
+          type: "text",
+          text: `🎉 No wanted (missing) ${service === "radarr" ? "movies" : "episodes"}!`
+        }]
+      };
+    }
+
+
+    return {
+      content: [{
+        type: "text",
+        text: `🧾 Wanted list from ${service}:\n`+ JSON.stringify(missingItems)
+      }]
+    };
+
+    }
     case "request_download": {
       const { mediaType, id } = request.params.arguments as any;
-      
+
       if (mediaType === "movie") {
         await axios.post(
           `${config.radarr.url}/api/v3/command/MoviesSearch`,
@@ -415,9 +484,59 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
+    case "get_activity": {
+        const { service } = request.params.arguments as any;
+
+          let queueResponse;
+
+          if (service === "radarr") {
+            queueResponse = await axios.get(
+              `${config.radarr.url}/api/v3/queue`,
+              {
+                headers: { 'X-Api-Key': config.radarr.apiKey }
+              }
+            );
+          } else if (service == "sonarr"){
+            queueResponse = await axios.get(
+              `${config.sonarr.url}/api/v3/queue`,
+              {
+                headers: { 'X-Api-Key': config.sonarr.apiKey }
+              }
+            );
+          }
+          else {
+              throw new Error("Service can either be 'sonarr' or 'radarr'");
+          }
+
+          const queue = queueResponse.data.records;
+          if (!Array.isArray(queue) || queue.length === 0) {
+            return {
+              content: [{
+                type: "text",
+                text: `No active downloads in ${service}.`
+              }]
+            };
+          }
+
+          const summary = queue.map(item => {
+            const progress = item.size > 0
+              ? `${((item.sizeleft / item.size) * 100).toFixed(1)}% remaining`
+              : "Progress unknown";
+
+            return {progress:progress,...item}
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: `Current ${service} activity:\n` + JSON.stringify(summary)
+            }]
+          };
+        }
+
     case "check_status": {
       const { mediaType, id } = request.params.arguments as any;
-      
+
       let status;
       if (mediaType === "movie") {
         const response = await axios.get(
@@ -457,7 +576,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (system === "radarr" || system === "both") {
         status.radarr = await getRadarrSystemStatus();
       }
-      
+
       if (system === "sonarr" || system === "both") {
         status.sonarr = await getSonarrSystemStatus();
       }
