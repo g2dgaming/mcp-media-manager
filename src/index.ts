@@ -324,11 +324,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             mediaType: {
               type: "string",
               enum: ["movie", "series"],
-              description: "Type of media to download"
+              description: "Type of media to download('series','movies')",
             },
             id: {
               type: "number",
-              description: "ID of the media to download"
+              description: "Tmdb id of the media to download"
             }
           },
           required: ["mediaType", "id"]
@@ -464,13 +464,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       if (mediaType === "movie") {
         await axios.post(
-          `${config.radarr.url}/api/v3/command/MoviesSearch`,
-          { movieIds: [id] },
+          `${config.radarr.url}/api/v3/movie`,
+          {
+            "tmdbId": id,
+            "rootFolderPath": "/movies",
+            "qualityProfileId": 4,
+            "monitored": true,
+            "addOptions": {
+                "searchForMovie": true
+            },
+            "minimumAvailability": "released"
+         },
           { headers: { 'X-Api-Key': config.radarr.apiKey } }
         );
       } else {
         await axios.post(
-          `${config.sonarr.url}/api/v3/command/SeriesSearch`,
+          `${config.sonarr.url}/api/v3/series`,
           { seriesId: id },
           { headers: { 'X-Api-Key': config.sonarr.apiKey } }
         );
