@@ -451,8 +451,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }]
       };
     }
-
-
     return {
       content: [{
         type: "text",
@@ -465,12 +463,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { mediaType, tvdbId,tmdbId } = request.params.arguments as any;
 
       if (mediaType === "movie") {
-        if(!tmdbId){
-          throw new Error("tmdbId is required to download movie");
-        }
         await axios.post(
-          `${config.radarr.url}/api/v3/movie`,
-          {
+          `${config.radarr.url}/api/v3/movie`, {
             "tmdbId": tmdbId,
             "rootFolderPath": "/movies",
             "qualityProfileId": 4,
@@ -483,12 +477,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           { headers: { 'X-Api-Key': config.radarr.apiKey } }
         );
       } else {
-        if(!tvdbId){
-          throw new Error("tvdbId is required to download series");
-        }
         await axios.post(
-          `${config.sonarr.url}/api/v3/series`,
-{
+          `${config.sonarr.url}/api/v3/series`, {
             "tvdbId": tvdbId,
             "rootFolderPath": "/tv",
             "qualityProfileId": 4,
