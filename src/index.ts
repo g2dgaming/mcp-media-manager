@@ -485,10 +485,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             "rootFolderPath": "/tv",
             "qualityProfileId": 4,
             "monitored": true,
-            "addOptions": {
-                "searchForMovie": true
-            },
-            "minimumAvailability": "released"
          },
             { headers: { 'X-Api-Key': config.sonarr.apiKey } as any }
         );
