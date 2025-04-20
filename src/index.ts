@@ -338,7 +338,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "check_status",
-        description: "Check the status of a movie or TV show",
+        description: "Check the status of a movie or TV show. Do not call this if the 'monitored' is false",
         inputSchema: {
           type: "object",
           properties: {
