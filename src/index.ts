@@ -468,7 +468,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if(!tmdbId){
           throw new Error("tmdbId is required to download movie")
         }
-        await axios.post(
+        var response=await axios.post(
           `${config.radarr.url}/api/v3/movie`,
           {
             "tmdbId": tmdbId,
@@ -486,17 +486,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if(!tvdbId){
           throw new Error("tvdbId is required to download series");
         }
-        await axios.post(
+        var response=await axios.post(
           `${config.sonarr.url}/api/v3/series`,
-          { seriesId: id },
-          { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+{
+            "tvdbId": tvdbId,
+            "rootFolderPath": "/tv",
+            "qualityProfileId": 4,
+            "monitored": true,
+            "addOptions": {
+                "searchForMovie": true
+            },
+            "minimumAvailability": "released"
+         },
+            { headers: { 'X-Api-Key': config.sonarr.apiKey } }
         );
       }
 
       return {
         content: [{
           type: "text",
-          text: `Download requested for ${mediaType} with ID ${id}`
+          text: `Download requested for ${mediaType}.`
         }]
       };
     }
