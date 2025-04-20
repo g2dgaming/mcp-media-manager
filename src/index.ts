@@ -490,7 +490,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return {
         content: [{
           type: "text",
-          text: `Download requested for ${mediaType}.`
+          text: `Download request successful.`
         }]
       };
     }
