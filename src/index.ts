@@ -257,12 +257,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   let content;
   if (type == "radarr" && mediaType === 'movie') {
     const response = await axios.get(`${config.radarr.url}/api/v3/movie/${id}`, {
-      headers: { 'X-Api-Key': config.radarr.apiKey },
+      headers: { 'X-Api-Key': config.radarr.apiKey } as any,
     });
     content = response.data;
   } else if ( type == "sonarr" && mediaType === 'series') {
     const response = await axios.get(`${config.sonarr.url}/api/v3/series/${id}`, {
-      headers: { 'X-Api-Key': config.sonarr.apiKey },
+      headers: { 'X-Api-Key': config.sonarr.apiKey } as any,
     });
     content = response.data;
   } else {
@@ -438,7 +438,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       : config.sonarr.apiKey;
 
     const response = await axios.get(endpoint, {
-      headers: { 'X-Api-Key': apiKey }
+      headers: { 'X-Api-Key': apiKey } as any
     });
 
     const missingItems = response.data.records;
@@ -474,7 +474,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
             "minimumAvailability": "released"
          },
-          { headers: { 'X-Api-Key': config.radarr.apiKey } }
+          { headers: { 'X-Api-Key': config.radarr.apiKey } as any }
         );
       } else {
         await axios.post(
@@ -488,7 +488,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
             "minimumAvailability": "released"
          },
-            { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+            { headers: { 'X-Api-Key': config.sonarr.apiKey } as any }
         );
       }
 
@@ -510,14 +510,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               `${config.radarr.url}/api/v3/queue`,
               {
                 headers: { 'X-Api-Key': config.radarr.apiKey }
-              }
+              } as any
             );
           } else if (service == "sonarr"){
             queueResponse = await axios.get(
               `${config.sonarr.url}/api/v3/queue`,
               {
                 headers: { 'X-Api-Key': config.sonarr.apiKey }
-              }
+              } as any
             );
           }
           else {
@@ -557,7 +557,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (mediaType === "movie") {
         const response = await axios.get(
           `${config.radarr.url}/api/v3/movie/${id}`,
-          { headers: { 'X-Api-Key': config.radarr.apiKey } }
+          { headers: { 'X-Api-Key': config.radarr.apiKey } as any }
         );
         status = {
           monitored: response.data.monitored,
@@ -568,7 +568,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       } else {
         const response = await axios.get(
           `${config.sonarr.url}/api/v3/series/${id}`,
-          { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+          { headers: { 'X-Api-Key': config.sonarr.apiKey } as any }
         );
         status = {
           monitored: response.data.monitored,
