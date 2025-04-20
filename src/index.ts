@@ -113,7 +113,6 @@ function reduceMovieData(movie: any) {
     overview: movie.overview,
     certification: movie.certification,
     releaseDate: movie.releaseDate,
-    imdbId: movie.imdbId,
     tmdbId: movie.tmdbId,
     popularity: movie.popularity,
   };
@@ -135,7 +134,6 @@ function reduceSeriesData(series: any) {
     overview: series.overview,
     certification: series.certification,
     releaseDate: series.firstAired,
-    imdbId: series.imdbId,
     tvdbId: series.tvdbId,
     popularity: series.popularity,
   };
@@ -324,14 +322,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             mediaType: {
               type: "string",
               enum: ["movie", "series"],
-              description: "Type of media to download('series','movies')",
+              description: "Type of media to download('series','movie')",
             },
-            id: {
+            tmdbId: {
               type: "number",
-              description: "Tmdb id of the media to download"
+              description: "TMDB id of the movie/series to download"
+            },
+            tvdbId: {
+              type: "number",
+              description: "TVDB id of the movie/series to download"
             }
           },
-          required: ["mediaType", "id"]
+          required: ["mediaType"]
         }
       },
       {
@@ -460,13 +462,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     }
     case "request_download": {
-      const { mediaType, id } = request.params.arguments as any;
+      const { mediaType, tvdbId,tmdbId } = request.params.arguments as any;
 
       if (mediaType === "movie") {
+        if(!tmdbId){
+          throw new Error("tmdbId is required to download movie")
+        }
         await axios.post(
           `${config.radarr.url}/api/v3/movie`,
           {
-            "tmdbId": id,
+            "tmdbId": tmdbId,
             "rootFolderPath": "/movies",
             "qualityProfileId": 4,
             "monitored": true,
@@ -478,6 +483,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           { headers: { 'X-Api-Key': config.radarr.apiKey } }
         );
       } else {
+        if(!tvdbId){
+          throw new Error("tvdbId is required to download series");
+        }
         await axios.post(
           `${config.sonarr.url}/api/v3/series`,
           { seriesId: id },
