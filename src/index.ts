@@ -460,9 +460,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     }
     case "request_download": {
-      const { mediaType, tvdbId,tmdbId } = request.params.arguments as any;
+      const { mediaType } = request.params.arguments as any;
 
       if (mediaType === "movie") {
+        const {tmdbId}= request.params.arguments as any;
         await axios.post(
           `${config.radarr.url}/api/v3/movie`, {
             "tmdbId": tmdbId,
@@ -477,6 +478,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           { headers: { 'X-Api-Key': config.radarr.apiKey } as any }
         );
       } else {
+        const {tvdbId}= request.params.arguments as any;
         await axios.post(
           `${config.sonarr.url}/api/v3/series`, {
             "tvdbId": tvdbId,
