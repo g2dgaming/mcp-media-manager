@@ -466,9 +466,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       if (mediaType === "movie") {
         if(!tmdbId){
-          throw new Error("tmdbId is required to download movie")
+          throw new Error("tmdbId is required to download movie");
         }
-        var response=await axios.post(
+        await axios.post(
           `${config.radarr.url}/api/v3/movie`,
           {
             "tmdbId": tmdbId,
@@ -486,7 +486,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if(!tvdbId){
           throw new Error("tvdbId is required to download series");
         }
-        var response=await axios.post(
+        await axios.post(
           `${config.sonarr.url}/api/v3/series`,
 {
             "tvdbId": tvdbId,
