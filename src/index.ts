@@ -104,14 +104,12 @@ function reduceMovieData(movie: any) {
     title: movie.title,
     originalTitle: movie.originalTitle,
     year: movie.year,
-    runtime: movie.runtime,
     status: movie.status,
     monitored: movie.monitored,
     isAvailable: movie.isAvailable,
     genres: movie.genres,
     studio: movie.studio,
     overview: movie.overview,
-    certification: movie.certification,
     releaseDate: movie.releaseDate,
     tmdbId: movie.tmdbId,
     popularity: movie.popularity,
@@ -547,38 +545,89 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "check_status": {
       const { mediaType, id } = request.params.arguments as any;
-
       let status;
+
       if (mediaType === "movie") {
-        const response = await axios.get(
+        const movieRes = await axios.get(
           `${config.radarr.url}/api/v3/movie/${id}`,
-          { headers: { 'X-Api-Key': config.radarr.apiKey } as any }
+          { headers: { 'X-Api-Key': config.radarr.apiKey } }
         );
+
+        const movie = movieRes.data;
+
         status = {
-          monitored: response.data.monitored,
-          status: response.data.status,
-          downloaded: response.data.downloaded,
-          hasFile: response.data.hasFile,
+          monitored: movie.monitored,
+          status: movie.status,
+          hasFile: movie.hasFile,
+          in_queue: false,
+          queue: {},
         };
+
+        if (!movie.hasFile) {
+          // Initialize pagination parameters
+          let page = 1;
+          const pageSize = 100; // Adjust as needed
+          let totalRecords = 0;
+          let found = false;
+
+          do {
+            const queueRes = await axios.get(
+              `${config.radarr.url}/api/v3/queue?page=${page}&pageSize=${pageSize}`,
+              { headers: { 'X-Api-Key': config.radarr.apiKey } }
+            );
+
+            const queueData = queueRes.data;
+
+            // Radarr's paged response includes 'records' and 'totalRecords'
+            const records = queueData.records;
+            totalRecords = queueData.totalRecords;
+            // Check if the movie is in the current page of the queue
+            const matchingQueueItem = records.find(
+              (item: any) => item?.movieId === movie.id
+            );
+
+            if (matchingQueueItem) {
+              found = true;
+              status.in_queue=true;
+              status.queue = {
+                timeLeft: matchingQueueItem.timeleft,
+                size: matchingQueueItem.size, // in bytes
+                sizeLeft: matchingQueueItem.sizeleft, // in bytes
+                status: matchingQueueItem.status,
+                title: matchingQueueItem.title,
+                downloadProgress: matchingQueueItem.size > 0
+                  ? ((matchingQueueItem.size - matchingQueueItem.sizeleft) / matchingQueueItem.size * 100).toFixed(2) + '%'
+                  : '0%',
+              };
+              break;
+            }
+
+            page++;
+          } while ((page - 1) * pageSize < totalRecords && !found);
+        }
       } else {
-        const response = await axios.get(
+        const seriesRes = await axios.get(
           `${config.sonarr.url}/api/v3/series/${id}`,
-          { headers: { 'X-Api-Key': config.sonarr.apiKey } as any }
+          { headers: { 'X-Api-Key': config.sonarr.apiKey } }
         );
+
+        const series = seriesRes.data;
+
         status = {
-          monitored: response.data.monitored,
-          status: response.data.status,
-          percentOfEpisodes: response.data.statistics.percentOfEpisodes,
+          monitored: series.monitored,
+          status: series.status,
+          percentOfEpisodes: series.statistics?.percentOfEpisodes ?? null,
         };
       }
 
       return {
         content: [{
           type: "text",
-          text: JSON.stringify(status, null, 2)
+          text: JSON.stringify(status, null, 2),
         }]
       };
     }
+
 
     case "get_system_status": {
       const { system } = request.params.arguments as any;
