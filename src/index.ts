@@ -335,24 +335,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
-        name: "check_status",
-        description: "Check the status of a movie or TV show. Do not call this if the 'monitored' is false",
-        inputSchema: {
-          type: "object",
-          properties: {
-            mediaType: {
-              type: "string",
-              enum: ["movie", "series"],
-              description: "Type of media to check"
-            },
-            id: {
-              type: "number",
-              description: "ID of the media to check"
-            }
+      "name": "check_status",
+      "description": "Check the status of a movie or TV show. This function is intended to be used to retrieve the download or monitoring status of a specific media item from a media management system such as Radarr or Sonarr. IMPORTANT: This should only be called if the 'monitored' field for the media item is true, indicating that the user is actively tracking it. The function accepts multiple possible identifiers for flexibility—either the internal system ID (`id`), the TheMovieDB ID (`tmdbId`), or the TheTVDB ID (`tvdbId`). Only one of these identifiers needs to be provided. The media type must also be specified as either a movie or a series. This tool is useful for determining if a media item is downloaded, missing, queued, or has other relevant status updates in the media library.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mediaType": {
+            "type": "string",
+            "enum": ["movie", "series"],
+            "description": "Type of media to check, either 'movie' or 'series'."
           },
-          required: ["mediaType", "id"]
-        }
-      },
+          "id": {
+            "type": "number",
+            "description": "Internal ID of the media as assigned by the media server (Radarr/Sonarr). Optional if 'tmdbId' or 'tvdbId' is provided."
+          },
+          "tmdbId": {
+            "type": "number",
+            "description": "TheMovieDB ID of the media. Optional if 'id' or 'tvdbId' is provided."
+          },
+          "tvdbId": {
+            "type": "number",
+            "description": "TheTVDB ID of the media. Optional if 'id' or 'tmdbId' is provided."
+          }
+        },
+        "required": ["mediaType"],
+        "oneOf": [
+          { "required": ["id"] },
+          { "required": ["tmdbId"] },
+          { "required": ["tvdbId"] }
+        ]
+      }
+    },
       {
         name: "get_system_status",
         description: "Get system health and storage information",
@@ -544,89 +557,144 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
     case "check_status": {
-      const { mediaType, id } = request.params.arguments as any;
+      const { mediaType, id, tmdbId, tvdbId } = request.params.arguments as any;
       let status;
 
-      if (mediaType === "movie") {
-        const movieRes = await axios.get(
-          `${config.radarr.url}/api/v3/movie/${id}`,
-          { headers: { 'X-Api-Key': config.radarr.apiKey } }
-        );
+      try {
+        if (mediaType === "movie") {
+          let movieRes;
 
-        const movie = movieRes.data;
-
-        status = {
-          monitored: movie.monitored,
-          status: movie.status,
-          hasFile: movie.hasFile,
-          in_queue: false,
-          queue: {},
-        };
-
-        if (!movie.hasFile) {
-          // Initialize pagination parameters
-          let page = 1;
-          const pageSize = 100; // Adjust as needed
-          let totalRecords = 0;
-          let found = false;
-
-          do {
-            const queueRes = await axios.get(
-              `${config.radarr.url}/api/v3/queue?page=${page}&pageSize=${pageSize}`,
+          if (id) {
+            movieRes = await axios.get(
+              `${config.radarr.url}/api/v3/movie/${id}`,
               { headers: { 'X-Api-Key': config.radarr.apiKey } }
             );
-
-            const queueData = queueRes.data;
-
-            // Radarr's paged response includes 'records' and 'totalRecords'
-            const records = queueData.records;
-            totalRecords = queueData.totalRecords;
-            // Check if the movie is in the current page of the queue
-            const matchingQueueItem = records.find(
-              (item: any) => item?.movieId === movie.id
+          } else if (tmdbId) {
+            const lookupRes = await axios.get(
+              `${config.radarr.url}/api/v3/movie/lookup?tmdbId=${tmdbId}`,
+              { headers: { 'X-Api-Key': config.radarr.apiKey } }
             );
-
-            if (matchingQueueItem) {
-              found = true;
-              status.in_queue=true;
-              status.queue = {
-                timeLeft: matchingQueueItem.timeleft,
-                size: matchingQueueItem.size, // in bytes
-                sizeLeft: matchingQueueItem.sizeleft, // in bytes
-                status: matchingQueueItem.status,
-                title: matchingQueueItem.title,
-                downloadProgress: matchingQueueItem.size > 0
-                  ? ((matchingQueueItem.size - matchingQueueItem.sizeleft) / matchingQueueItem.size * 100).toFixed(2) + '%'
-                  : '0%',
+            if (!lookupRes.data || lookupRes.data.length === 0) {
+              return {
+                content: [{
+                  type: "text",
+                  text: `❌ No movie found with TMDB ID ${tmdbId}. Please check the ID and try again.`,
+                }]
               };
-              break;
             }
+            movieRes = { data: lookupRes.data };
+          } else {
+            return {
+              content: [{
+                type: "text",
+                text: "❌ No valid movie identifier provided. Please provide either 'id' or 'tmdbId'.",
+              }]
+            };
+          }
 
-            page++;
-          } while ((page - 1) * pageSize < totalRecords && !found);
+          const movie = movieRes.data;
+
+          status = {
+            monitored: movie.monitored,
+            status: movie.status,
+            hasFile: movie.hasFile,
+            in_queue: false,
+            queue: {},
+          };
+
+          if (!movie.hasFile) {
+            let page = 1;
+            const pageSize = 100;
+            let totalRecords = 0;
+            let found = false;
+
+            do {
+              const queueRes = await axios.get(
+                `${config.radarr.url}/api/v3/queue?page=${page}&pageSize=${pageSize}`,
+                { headers: { 'X-Api-Key': config.radarr.apiKey } }
+              );
+
+              const { records, totalRecords: total } = queueRes.data;
+              totalRecords = total;
+
+              const match = records.find((item: any) => item?.movieId === movie.id);
+              if (match) {
+                found = true;
+                status.in_queue = true;
+                status.queue = {
+                  timeLeft: match.timeleft,
+                  size: match.size,
+                  sizeLeft: match.sizeleft,
+                  status: match.status,
+                  title: match.title,
+                  downloadProgress: match.size > 0
+                    ? ((match.size - match.sizeleft) / match.size * 100).toFixed(2) + '%'
+                    : '0%',
+                };
+                break;
+              }
+
+              page++;
+            } while ((page - 1) * pageSize < totalRecords && !found);
+          }
+
+        } else {
+          let seriesRes;
+
+          if (id) {
+            seriesRes = await axios.get(
+              `${config.sonarr.url}/api/v3/series/${id}`,
+              { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+            );
+          } else if (tvdbId) {
+            const lookupRes = await axios.get(
+              `${config.sonarr.url}/api/v3/series/lookup?tvdbId=${tvdbId}`,
+              { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+            );
+            if (!lookupRes.data || lookupRes.data.length === 0) {
+              return {
+                content: [{
+                  type: "text",
+                  text: `❌ No series found with TVDB ID ${tvdbId}. Please check the ID and try again.`,
+                }]
+              };
+            }
+            seriesRes = { data: lookupRes.data };
+          } else {
+            return {
+              content: [{
+                type: "text",
+                text: "❌ No valid series identifier provided. Please provide either 'id' or 'tvdbId'.",
+              }]
+            };
+          }
+
+          const series = seriesRes.data;
+
+          status = {
+            monitored: series.monitored,
+            status: series.status,
+            percentOfEpisodes: series.statistics?.percentOfEpisodes ?? null,
+          };
         }
-      } else {
-        const seriesRes = await axios.get(
-          `${config.sonarr.url}/api/v3/series/${id}`,
-          { headers: { 'X-Api-Key': config.sonarr.apiKey } }
-        );
 
-        const series = seriesRes.data;
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(status, null, 2),
+          }]
+        };
 
-        status = {
-          monitored: series.monitored,
-          status: series.status,
-          percentOfEpisodes: series.statistics?.percentOfEpisodes ?? null,
+      } catch (err: any) {
+        return {
+          content: [{
+            type: "text",
+            text: `❌ An error occurred while checking status: ${err?.response?.data?.message || err.message}`,
+          }]
         };
       }
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(status, null, 2),
-        }]
-      };
     }
+
 
 
     case "get_system_status": {
