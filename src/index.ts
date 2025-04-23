@@ -562,37 +562,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       try {
         if (mediaType === "movie") {
-          let movieRes;
+          let movie;
 
           if (id) {
-            movieRes = await axios.get(
+            const res = await axios.get(
               `${config.radarr.url}/api/v3/movie/${id}`,
               { headers: { 'X-Api-Key': config.radarr.apiKey } }
             );
+            movie = res.data;
           } else if (tmdbId) {
-            const lookupRes = await axios.get(
-              `${config.radarr.url}/api/v3/movie/lookup?tmdbId=${tmdbId}`,
+            const res = await axios.get(
+              `${config.radarr.url}/api/v3/movie`,
               { headers: { 'X-Api-Key': config.radarr.apiKey } }
             );
-            if (!lookupRes.data || lookupRes.data.length === 0) {
+            movie = res.data.find((m: any) => m.tmdbId === tmdbId);
+
+            if (!movie) {
               return {
                 content: [{
                   type: "text",
-                  text: `❌ No movie found with TMDB ID ${tmdbId}. Please check the ID and try again.`,
+                  text: `❌ No movie found in your library with TMDB ID ${tmdbId}.`,
                 }]
               };
             }
-            movieRes = { data: lookupRes.data };
           } else {
             return {
               content: [{
                 type: "text",
-                text: "❌ No valid movie identifier provided. Please provide either 'id' or 'tmdbId'.",
+                text: "❌ Please provide either 'id' or 'tmdbId' to check movie status.",
               }]
             };
           }
-
-          const movie = movieRes.data;
 
           status = {
             monitored: movie.monitored,
@@ -638,38 +638,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             } while ((page - 1) * pageSize < totalRecords && !found);
           }
 
-        } else {
-          let seriesRes;
+        } else if (mediaType === "series") {
+          let series;
 
           if (id) {
-            seriesRes = await axios.get(
+            const res = await axios.get(
               `${config.sonarr.url}/api/v3/series/${id}`,
               { headers: { 'X-Api-Key': config.sonarr.apiKey } }
             );
+            series = res.data;
           } else if (tvdbId) {
-            const lookupRes = await axios.get(
-              `${config.sonarr.url}/api/v3/series/lookup?tvdbId=${tvdbId}`,
+            const res = await axios.get(
+              `${config.sonarr.url}/api/v3/series`,
               { headers: { 'X-Api-Key': config.sonarr.apiKey } }
             );
-            if (!lookupRes.data || lookupRes.data.length === 0) {
+            series = res.data.find((s: any) => s.tvdbId === tvdbId);
+
+            if (!series) {
               return {
                 content: [{
                   type: "text",
-                  text: `❌ No series found with TVDB ID ${tvdbId}. Please check the ID and try again.`,
+                  text: `❌ No series found in your library with TVDB ID ${tvdbId}.`,
                 }]
               };
             }
-            seriesRes = { data: lookupRes.data };
           } else {
             return {
               content: [{
                 type: "text",
-                text: "❌ No valid series identifier provided. Please provide either 'id' or 'tvdbId'.",
+                text: "❌ Please provide either 'id' or 'tvdbId' to check series status.",
               }]
             };
           }
-
-          const series = seriesRes.data;
 
           status = {
             monitored: series.monitored,
@@ -694,6 +694,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
+
 
 
 
