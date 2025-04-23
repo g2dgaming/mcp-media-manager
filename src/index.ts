@@ -472,38 +472,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case "request_download": {
       const args = request.params.arguments as any;
-      if (args?.tmdbId) {
-        await axios.post(
-          `${config.radarr.url}/api/v3/movie`, {
-            "tmdbId": args.tmdbId,
-            "rootFolderPath": "/movies",
-            "qualityProfileId": 4,
-            "monitored": true,
-            "addOptions": {
-                "searchForMovie": true
-            },
-            "minimumAvailability": "released"
-         },
-          { headers: { 'X-Api-Key': config.radarr.apiKey } as any }
-        );
-      } else {
-        await axios.post(
-          `${config.sonarr.url}/api/v3/series`, {
-            "tvdbId": args.tvdbId,
-            "rootFolderPath": "/tv",
-            "qualityProfileId": 4,
-            "monitored": true,
-         },
-            { headers: { 'X-Api-Key': config.sonarr.apiKey } as any }
-        );
-      }
+      try {
+        if (args?.tmdbId) {
+          await axios.post(
+              `${config.radarr.url}/api/v3/movie`, {
+                "tmdbId": args.tmdbId,
+                "rootFolderPath": "/movies",
+                "qualityProfileId": 4,
+                "monitored": true,
+                "addOptions": {
+                  "searchForMovie": true
+                },
+                "minimumAvailability": "released"
+              },
+              {headers: {'X-Api-Key': config.radarr.apiKey} as any}
+          );
+        } else {
+          await axios.post(
+              `${config.sonarr.url}/api/v3/series`, {
+                "tvdbId": args.tvdbId,
+                "rootFolderPath": "/tv",
+                "qualityProfileId": 4,
+                "monitored": true,
+              },
+              {headers: {'X-Api-Key': config.sonarr.apiKey} as any}
+          );
+        }
 
-      return {
-        content: [{
-          type: "text",
-          text: `Download request successful.`
-        }]
-      };
+        return {
+          content: [{
+            type: "text",
+            text: `Download request successful.`
+          }]
+        };
+      }
+      catch (err: any) {
+        return {
+          content: [{
+            type: "text",
+            text: `❌ An error occurred while downloading movie: ${err?.response?.data?.message || err.message}`,
+          }]
+        };
+      }
     }
 
     case "get_activity": {
