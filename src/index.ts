@@ -142,34 +142,57 @@ function reduceSeriesData(series: any) {
 // 🎬 Get movies from Radarr
 export async function getRadarrMovies(filters?: FilterOptions) {
   try {
-    const endpoint = filters?.title ? '/api/v3/movie/lookup' : '/api/v3/movie';
-    const response = await axios.get(`${config.radarr.url}${endpoint}`, {
+    const response = await axios.get(`${config.radarr.url}/api/v3/movie/lookup`, {
       headers: { 'X-Api-Key': config.radarr.apiKey },
       params: filters?.title ? { term: filters.title } : undefined,
     });
 
-    return applyFilters(response.data, filters).map(reduceMovieData);
+    const movies = await Promise.all(
+      response.data.map(async (movie: any) => {
+        if (movie.id) {
+          // Already added, get full metadata
+          const fullMovie = await axios.get(`${config.radarr.url}/api/v3/movie/${movie.id}`, {
+            headers: { 'X-Api-Key': config.radarr.apiKey },
+          });
+          return fullMovie.data;
+        }
+        return movie;
+      })
+    );
+
+    return applyFilters(movies, filters).map(reduceMovieData);
   } catch (error) {
     console.error('Error fetching Radarr movies:', error);
     throw error;
   }
 }
-
-// 📺 Get series from Sonarr
 export async function getSonarrSeries(filters?: FilterOptions) {
   try {
-    const endpoint = filters?.title ? '/api/v3/series/lookup' : '/api/v3/series';
-    const response = await axios.get(`${config.sonarr.url}${endpoint}`, {
+    const response = await axios.get(`${config.sonarr.url}/api/v3/series/lookup`, {
       headers: { 'X-Api-Key': config.sonarr.apiKey },
       params: filters?.title ? { term: filters.title } : undefined,
     });
 
-    return applyFilters(response.data, filters).map(reduceSeriesData);
+    const seriesList = await Promise.all(
+      response.data.map(async (series: any) => {
+        if (series.id) {
+          // Already added locally, fetch full series data
+          const fullSeries = await axios.get(`${config.sonarr.url}/api/v3/series/${series.id}`, {
+            headers: { 'X-Api-Key': config.sonarr.apiKey },
+          });
+          return fullSeries.data;
+        }
+        return series;
+      })
+    );
+
+    return applyFilters(seriesList, filters).map(reduceSeriesData);
   } catch (error) {
     console.error('Error fetching Sonarr series:', error);
     throw error;
   }
 }
+
 
 // New helper functions for system management
 async function getRadarrSystemStatus() {
