@@ -709,6 +709,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               page++;
             } while ((page - 1) * pageSize < totalRecords && !found);
           }
+          else{
+            //File exists
+            status.size=movie.size;
+            status.added=movie.added;
+            status.ratings=movie.ratings;
+          }
 
         } else if (mediaType === "series") {
           let series;
