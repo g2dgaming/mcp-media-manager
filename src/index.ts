@@ -96,6 +96,13 @@ function applyFilters<T extends { year?: number; genres?: string[] }>(
 
   return result;
 }
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const value = bytes / Math.pow(1024, i);
+    return `${value.toFixed(2)} ${sizes[i]}`;
+}
 
 // 🎯 Reduce Radarr movie fields for AI consumption
 function reduceMovieData(movie: any) {
@@ -126,18 +133,35 @@ function reduceSeriesData(series: any) {
     year: series.year,
     runtime: series.runtime,
     status: series.status,
-    size:formatBytes(series.sizeOnDisk),
+    size:formatBytes(series.statistics.sizeOnDisk??0),
     monitored: series.monitored,
+    seasons:formatSeason(series.seasons),
     isAvailable: series.isAvailable,
     genres: series.genres,
     studio: series.studio,
     overview: series.overview,
-    certification: series.certification,
     releaseDate: series.firstAired,
     tvdbId: series.tvdbId,
-    popularity: series.popularity,
   };
 }
+
+function formatSeason(seasons: any[]): any[] {
+  return seasons.map(season => ({
+    seasonNumber: season.seasonNumber,
+    monitored: season.monitored,
+    stats: season.statistics
+        ? {
+          episodeCount: season.statistics.episodeCount,
+          episodeFileCount: season.statistics.episodeFileCount,
+          percentOfEpisodes: season.statistics.percentOfEpisodes,
+          previousAiring: season.statistics.previousAiring,
+          sizeOnDisk: season.statistics.sizeOnDisk,
+          sizeFormatted: formatBytes(season.statistics.sizeOnDisk),
+        }
+        : null,
+  }));
+}
+
 
 // 🎬 Get movies from Radarr
 export async function getRadarrMovies(filters?: FilterOptions) {
@@ -835,13 +859,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-}
-function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    const value = bytes / Math.pow(1024, i);
-    return `${value.toFixed(2)} ${sizes[i]}`;
 }
 
 main().catch((error) => {
