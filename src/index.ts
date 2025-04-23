@@ -713,7 +713,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
           else{
             //File exists
-            status.size=movie.size;
+            status.size=formatBytes(movie.sizeOnDisk);
             status.added=movie.added;
             status.ratings=movie.ratings;
           }
@@ -810,6 +810,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const value = bytes / Math.pow(1024, i);
+    return `${value.toFixed(2)} ${sizes[i]}`;
 }
 
 main().catch((error) => {
