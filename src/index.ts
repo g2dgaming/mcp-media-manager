@@ -474,47 +474,109 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const args = request.params.arguments as any;
       try {
         if (args?.tmdbId) {
-          await axios.post(
-              `${config.radarr.url}/api/v3/movie`, {
-                "tmdbId": args.tmdbId,
-                "rootFolderPath": "/movies",
-                "qualityProfileId": 4,
-                "monitored": true,
-                "addOptions": {
-                  "searchForMovie": true
-                },
-                "minimumAvailability": "released"
-              },
-              {headers: {'X-Api-Key': config.radarr.apiKey} as any}
+          // Check if movie already exists in library
+          const existingMoviesRes = await axios.get(
+            `${config.radarr.url}/api/v3/movie`,
+            { headers: { 'X-Api-Key': config.radarr.apiKey } }
           );
-        } else {
-          await axios.post(
-              `${config.sonarr.url}/api/v3/series`, {
-                "tvdbId": args.tvdbId,
-                "rootFolderPath": "/tv",
-                "qualityProfileId": 4,
-                "monitored": true,
-              },
-              {headers: {'X-Api-Key': config.sonarr.apiKey} as any}
-          );
-        }
 
+          const existingMovie = existingMoviesRes.data.find((m: any) => m.tmdbId === args.tmdbId);
+
+          if (existingMovie) {
+            if (existingMovie.hasFile) {
+              return {
+                content: [{
+                  type: "text",
+                  text: `✅ Movie already exists in your library and is downloaded.`,
+                }]
+              };
+            } else {
+              return {
+                content: [{
+                  type: "text",
+                  text: `⏳ Movie is already in the library and may be downloading.`,
+                }]
+              };
+            }
+          }
+
+          // Proceed to add movie if not already there
+          await axios.post(
+            `${config.radarr.url}/api/v3/movie`,
+            {
+              tmdbId: args.tmdbId,
+              rootFolderPath: "/movies",
+              qualityProfileId: 4,
+              monitored: true,
+              addOptions: {
+                searchForMovie: true
+              },
+              minimumAvailability: "released"
+            },
+            { headers: { 'X-Api-Key': config.radarr.apiKey } }
+          );
+
+          return {
+            content: [{
+              type: "text",
+              text: `🎬 Download request for movie (TMDB ID: ${args.tmdbId}) sent successfully.`
+            }]
+          };
+
+        } else if (args?.tvdbId) {
+          // Check if series already exists in library
+          const existingSeriesRes = await axios.get(
+            `${config.sonarr.url}/api/v3/series`,
+            { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+          );
+
+          const existingSeries = existingSeriesRes.data.find((s: any) => s.tvdbId === args.tvdbId);
+
+          if (existingSeries) {
+            return {
+              content: [{
+                type: "text",
+                text: `✅ Series already exists in your library.`,
+              }]
+            };
+          }
+
+          // Proceed to add series if not already there
+          await axios.post(
+            `${config.sonarr.url}/api/v3/series`,
+            {
+              tvdbId: args.tvdbId,
+              rootFolderPath: "/tv",
+              qualityProfileId: 4,
+              monitored: true,
+            },
+            { headers: { 'X-Api-Key': config.sonarr.apiKey } }
+          );
+
+          return {
+            content: [{
+              type: "text",
+              text: `📺 Download request for series (TVDB ID: ${args.tvdbId}) sent successfully.`
+            }]
+          };
+        } else {
+          return {
+            content: [{
+              type: "text",
+              text: "❌ Please provide a valid 'tmdbId' for movie or 'tvdbId' for series."
+            }]
+          };
+        }
+      } catch (err: any) {
         return {
           content: [{
             type: "text",
-            text: `Download request successful.`
-          }]
-        };
-      }
-      catch (err: any) {
-        return {
-          content: [{
-            type: "text",
-            text: `❌ An error occurred while downloading movie: ${err?.response?.data?.message || err.message}`,
+            text: `❌ An error occurred while requesting download: ${err?.response?.data?.message || err.message}`,
           }]
         };
       }
     }
+
 
     case "get_activity": {
         const { service } = request.params.arguments as any;
