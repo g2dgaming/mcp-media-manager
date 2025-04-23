@@ -671,6 +671,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             status: movie.status,
             hasFile: movie.hasFile,
             in_queue: false,
+            size:"N/A",
+            added:"N/A",
+            ratings:[],
             queue: {},
           };
 
@@ -695,7 +698,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 status.in_queue = true;
                 status.queue = {
                   timeLeft: match.timeleft,
-                  size: match.size,
                   sizeLeft: match.sizeleft,
                   status: match.status,
                   title: match.title,
