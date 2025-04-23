@@ -66,13 +66,12 @@ const server = new Server(
 
 type FilterOptions = {
   year?: number;
-  genre?: string;
   title?: string;
   limit?: number;
 };
 
 // 🔧 Reusable filter logic
-function applyFilters<T extends { year?: number; genres?: string[] }>(
+function applyFilters<T extends { year?: number}>(
   items: T[],
   filters?: FilterOptions
 ): T[] {
@@ -84,11 +83,6 @@ function applyFilters<T extends { year?: number; genres?: string[] }>(
     result = result.filter(item => item.year === filters.year);
   }
 
-  if (filters.genre) {
-    result = result.filter(item =>
-      item.genres?.some(g => g.toLowerCase() === filters.genre?.toLowerCase())
-    );
-  }
 
   if (filters.limit && result.length > filters.limit) {
     result = result.slice(0, filters.limit);
@@ -344,10 +338,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "number",
               description: "Release year of the media. Helps narrow down the search."
             },
-            genre: {
-              type: "string",
-              description: "Genre of the media (e.g., 'action', 'drama', 'comedy'). Helps filter results."
-            },
             title: {
               type: "string",
               description: "Optional title or partial title to search for a specific media."
@@ -468,8 +458,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case "search_media": {
-    const { mediaType, year, genre, title,limit } = request.params.arguments as any;
-    const filters = { year, genre, title,limit };
+    const { mediaType, year, title,limit } = request.params.arguments as any;
+    const filters = { year, title,limit };
     if(!filters.limit){
       filters.limit=10;
     }
