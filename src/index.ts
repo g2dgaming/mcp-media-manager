@@ -123,6 +123,7 @@ function formatBytes(bytes: number): string {
 
 // 🎯 Reduce Radarr movie fields for AI consumption
 function reduceMovieData(movie: any) {
+  const size=movie.sizeOnDisk??0;
   return {
     id:movie.id,
     title: movie.title,
@@ -130,8 +131,8 @@ function reduceMovieData(movie: any) {
     year: movie.year,
     status: movie.status,
     monitored: movie.monitored,
-    size:formatBytes(movie.sizeOnDisk??0),
-    downloaded: movie.sizeOnDisk!=0??false,
+    size:formatBytes(size),
+    downloaded: size!=0,
     genres: movie.genres,
     studio: movie.studio,
     overview: movie.overview,
