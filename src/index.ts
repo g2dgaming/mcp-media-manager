@@ -50,30 +50,34 @@ const config: Config = {
     apiKey: process.env.SONARR_API_KEY || '',
   },
 };
-function getClosestTitleMatch(results, targetTitle) {
-  function levenshtein(a, b) {
-    const matrix = Array.from({ length: a.length + 1 }, (_, i) =>
-      Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-    );
+type Movie = {
+  title: string;
+  [key: string]: any;
+};
+function levenshtein(a: string, b: string): number {
+  const matrix: number[][] = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
 
-    for (let i = 1; i <= a.length; i++) {
-      for (let j = 1; j <= b.length; j++) {
-        if (a[i - 1].toLowerCase() === b[j - 1].toLowerCase()) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j] + 1,     // deletion
-            matrix[i][j - 1] + 1,     // insertion
-            matrix[i - 1][j - 1] + 1  // substitution
-          );
-        }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1].toLowerCase() === b[j - 1].toLowerCase()) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + 1
+        );
       }
     }
-
-    return matrix[a.length][b.length];
   }
 
-  let closest = null;
+  return matrix[a.length][b.length];
+}
+
+function getClosestTitleMatch(results: Movie[], targetTitle: string): Movie | null {
+  let closest: Movie | null = null;
   let smallestDistance = Infinity;
 
   for (const movie of results) {
@@ -86,6 +90,7 @@ function getClosestTitleMatch(results, targetTitle) {
 
   return closest;
 }
+
 const server = new Server(
   {
     name: "Media Server MCP",
