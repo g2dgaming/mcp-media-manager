@@ -705,19 +705,49 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }]
               };
             }
-          } else if(title) {
+          } else if (title) {
+            const filters = { year, title, limit: 10 };
+            const results = await getRadarrMovies(filters);
+
+            const candidates = results.filter((m: any) => m.id); // only movies with IDs
+            if (candidates.length === 0) {
               return {
+                content: [{
+                  type: "text",
+                  text: `❌ No movie with the title "${title}" found in Radarr.`,
+                }]
+              };
+            }
+
+            // Fuzzy match: closest title (and year if provided)
+            const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const inputTitle = normalize(title);
+            let bestMatch = candidates[0];
+            let bestScore = -Infinity;
+
+            for (const m of candidates) {
+              const mTitle = normalize(m.title);
+              let score = 0;
+
+              // Title similarity
+              if (mTitle === inputTitle) score += 100;
+              else if (mTitle.includes(inputTitle)) score += 50;
+
+              // Year match bonus
+              if (year && m.year == year) score += 20;
+
+              if (score > bestScore) {
+                bestScore = score;
+                bestMatch = m;
+              }
+            }
+
+            movie = bestMatch;
+          } else {
+            return {
               content: [{
                 type: "text",
-                text: "❌check_status tool does not support title, pass `id` or `tmdbId`.",
-              }]
-            };
-          }
-          else{
-             return {
-              content: [{
-                type: "text",
-                text: "❌ Please provide either 'id' or 'tmdbId' to check movie status.",
+                text: "❌ Please provide 'id', 'tmdbId', or 'title' to check movie status.",
               }]
             };
           }
@@ -727,9 +757,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             status: movie.status,
             hasFile: movie.hasFile,
             in_queue: false,
-            size:"N/A",
-            added:"N/A",
-            ratings:[],
+            size: "N/A",
+            added: "N/A",
+            ratings: [],
             queue: {},
           };
 
@@ -766,15 +796,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
               page++;
             } while ((page - 1) * pageSize < totalRecords && !found);
+          } else {
+            status.size = formatBytes(movie.sizeOnDisk);
+            status.added = movie.added;
+            status.ratings = movie.ratings;
           }
-          else{
-            //File exists
-            status.size=formatBytes(movie.sizeOnDisk);
-            status.added=movie.added;
-            status.ratings=movie.ratings;
-          }
-
-        } else if (mediaType === "series") {
+        }
+         else if (mediaType === "series") {
           let series;
 
           if (id) {
