@@ -68,6 +68,24 @@ const server = new Server(
     },
   }
 );
+function formatTime(time: string): string {
+  const [hours, minutes, seconds] = time.split(':').map(Number);
+
+  const parts: string[] = [];
+
+  if (hours > 0) {
+    parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+  }
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
+  }
+
+  return parts.join(' ');
+}
+
 
 type FilterOptions = {
   year?: number;
@@ -783,8 +801,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 found = true;
                 status.in_queue = true;
                 status.queue = {
-                  timeLeft: match.timeleft,
-                  sizeLeft: match.sizeleft,
+                  timeLeft: formatTime(match.timeleft),
+                  sizeLeft: formatBytes(match.sizeleft),
                   status: match.status,
                   title: match.title,
                   downloadProgress: match.size > 0
