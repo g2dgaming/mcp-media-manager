@@ -50,7 +50,42 @@ const config: Config = {
     apiKey: process.env.SONARR_API_KEY || '',
   },
 };
+function getClosestTitleMatch(results, targetTitle) {
+  function levenshtein(a, b) {
+    const matrix = Array.from({ length: a.length + 1 }, (_, i) =>
+      Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+    );
 
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        if (a[i - 1].toLowerCase() === b[j - 1].toLowerCase()) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1,     // deletion
+            matrix[i][j - 1] + 1,     // insertion
+            matrix[i - 1][j - 1] + 1  // substitution
+          );
+        }
+      }
+    }
+
+    return matrix[a.length][b.length];
+  }
+
+  let closest = null;
+  let smallestDistance = Infinity;
+
+  for (const movie of results) {
+    const distance = levenshtein(movie.title, targetTitle);
+    if (distance < smallestDistance) {
+      smallestDistance = distance;
+      closest = movie;
+    }
+  }
+
+  return closest;
+}
 const server = new Server(
   {
     name: "Media Server MCP",
@@ -668,7 +703,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
     case "check_status": {
-      const { mediaType, id, tmdbId, tvdbId } = request.params.arguments as any;
+      const { mediaType, id, tmdbId, tvdbId,title,year } = request.params.arguments as any;
       let status;
 
       try {
@@ -696,7 +731,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }]
               };
             }
-          } else {
+          } else if(title) {
+              // raw search
+              const filters = { year, title,limit:10 };
+              const bestMatch = getClosestTitleMatch(getRadarrMovies(filters), title);
+              if(!bestMatch.id){
+                return {
+                  content: [{
+                    type: "text",
+                    text: "❌ Could not find movie from title, pass tmdbId in next attempt",
+                  }]
+                };
+              }
+              movie=bestMatch;
+          }
+          else{
             return {
               content: [{
                 type: "text",
