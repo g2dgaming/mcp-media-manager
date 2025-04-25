@@ -76,7 +76,7 @@ function levenshtein(a: string, b: string): number {
   return matrix[a.length][b.length];
 }
 
-function getClosestTitleMatch(results: Movie[], targetTitle: string): Movie | null {
+function getClosestTitleMatch(results: Movie[], targetTitle: string): object {
   let closest: Movie | null = null;
   let smallestDistance = Infinity;
 
@@ -424,6 +424,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             "enum": ["movie", "series"],
             "description": "Type of media to check, either 'movie' or 'series'."
           },
+          "title":{
+            "type": "string",
+            "description": "Title of the movie"
+          },
           "id": {
             "type": "number",
             "description": "Internal ID of the media as assigned by the media server (Radarr/Sonarr). Optional if 'tmdbId' or 'tvdbId' is provided."
@@ -737,21 +741,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               };
             }
           } else if(title) {
-              // raw search
-              const filters = { year, title,limit:10 };
-              const bestMatch = getClosestTitleMatch(getRadarrMovies(filters), title);
-              if(!bestMatch.id){
-                return {
-                  content: [{
-                    type: "text",
-                    text: "❌ Could not find movie from title, pass tmdbId in next attempt",
-                  }]
-                };
-              }
-              movie=bestMatch;
+              return {
+              content: [{
+                type: "text",
+                text: "❌check_status tool does not support title, pass `id` or `tmdbId`.",
+              }]
+            };
           }
           else{
-            return {
+             return {
               content: [{
                 type: "text",
                 text: "❌ Please provide either 'id' or 'tmdbId' to check movie status.",
