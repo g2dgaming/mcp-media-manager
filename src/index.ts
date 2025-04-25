@@ -684,7 +684,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ? `${((item.sizeleft / item.size) * 100).toFixed(1)}% remaining`
               : "Progress unknown";
 
-            return {progress:progress,...item}
+            return {progress:progress,...item,sizeLeft:formatBytes(item.sizeLeft)}
           });
 
           return {
