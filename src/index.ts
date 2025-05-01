@@ -450,13 +450,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get_activity",
-        description: "Get the current download queue of Radarr or Sonarr, including ongoing downloads or pending activity.",
+        description: "Get the current download queue of movies with `mediaType` as 'radarr` or for series using `mediaType` as `sonarr`, including ongoing downloads or pending activity.",
         inputSchema: {
           type: "object",
           properties: {
             service: {
               type: "string",
-              enum: ["radarr", "sonarr"],
+              enum: ["radarr", "sonarr",'movies','series'],
               description: "Which service to check activity 'radarr' for movies , 'sonarr' for series"
             }
           },
@@ -650,14 +650,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           let queueResponse;
 
-          if (service === "radarr") {
+          if (service === "radarr" || service == "movies") {
             queueResponse = await axios.get(
               `${config.radarr.url}/api/v3/queue`,
               {
                 headers: { 'X-Api-Key': config.radarr.apiKey }
               } as any
             );
-          } else if (service == "sonarr"){
+          } else if (service == "sonarr" || service == "series"){
             queueResponse = await axios.get(
               `${config.sonarr.url}/api/v3/queue`,
               {
