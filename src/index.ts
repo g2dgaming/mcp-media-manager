@@ -349,14 +349,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "search_media",
-        description: "Search for movies or TV shows with filters",
+        description: "Search for movies or TV shows with filters. This tool requires mandatory `mediaType`",
         inputSchema: {
           type: "object",
           properties: {
             mediaType: {
               type: "string",
-              enum: ["movie", "series"],
-              description: "Type of media to search for: 'movie' or 'series'"
+              enum: ["movies", "series","movie","radarr"],
+              description: "Type of media to search for: `movies` or `series`"
             },
             year: {
               type: "number",
