@@ -454,13 +454,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            service: {
+            mediaType: {
               type: "string",
               enum: ["radarr", "sonarr",'movies','series'],
               description: "Which service to check activity 'radarr' for movies , 'sonarr' for series"
             }
           },
-          required: ["service"]
+          required: ["mediaType"]
         }
       },
       {
@@ -469,13 +469,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            service: {
+            mediaType: {
               type: "string",
               enum: ["radarr", "sonarr"],
               description: "Which system to get wanted media from"
             }
           },
-          required: ["service"]
+          required: ["mediaType"]
         }
       }
     ]
@@ -503,7 +503,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
     case "get_wanted":{
-            const { service } = request.params.arguments as any;
+            const { mediaType:service } = request.params.arguments as any;
             const endpoint = service === "radarr"
       ? `${config.radarr.url}/api/v3/wanted/missing`
       : `${config.sonarr.url}/api/v3/wanted/missing`;
@@ -646,7 +646,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 
     case "get_activity": {
-        const { service } = request.params.arguments as any;
+        const { mediaType:service } = request.params.arguments as any;
 
           let queueResponse;
 
