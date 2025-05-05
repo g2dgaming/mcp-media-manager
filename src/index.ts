@@ -491,9 +491,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if(!filters.limit){
       filters.limit=10;
     }
-    const results = mediaType === "movie"
-      ? await getRadarrMovies(filters)
-      : await getSonarrSeries(filters);
+    const results = ["movie", "movies", "radarr",'radar'].includes(mediaType)
+  ? await getRadarrMovies(filters)
+  : await getSonarrSeries(filters);
 
     return {
       content: [{
@@ -504,12 +504,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
     case "get_wanted":{
             const { mediaType:service } = request.params.arguments as any;
-            const endpoint = service === "radarr"
+            const endpoint = ["movie", "movies", "radarr","radar"].includes(service)
       ? `${config.radarr.url}/api/v3/wanted/missing`
       : `${config.sonarr.url}/api/v3/wanted/missing`;
-    if(service != "radarr" && service != "sonarr")
+    if(!["serie", "series", "sonar","sonarr"].includes(service))
     {
-      throw new Error("Service can either be 'sonarr' or 'radarr'");
+      throw new Error("Service can either be 'sonarr' or 'radarr'.");
     }
     const apiKey = service === "radarr"
       ? config.radarr.apiKey
