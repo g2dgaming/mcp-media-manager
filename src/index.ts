@@ -492,13 +492,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       filters.limit=10;
     }
     if(!mediaType){
-      return {
-      content: [{
-        type: "text",
-        text: "Please specify mediaType as `movies` or `series` "
-      }]
-    };
+      throw new Error("mediaType is required");
     }
+
     const results = ["movie", "movies", "radarr",'radar'].includes(mediaType)
   ? await getRadarrMovies(filters)
   : await getSonarrSeries(filters);
