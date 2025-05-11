@@ -331,7 +331,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     });
     content = response.data;
   } else {
-    throw new Error(`Invalid resource type ${type} mediaType :  ${mediaType} id ${id}`);
+    return {
+        content: [{
+          type: "text",
+          text: `❌Invalid resource type ${type} mediaType :  ${mediaType} id ${id}`,
+        }]
+      };
   }
 
   return {
@@ -492,7 +497,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       filters.limit=10;
     }
     if(!mediaType){
-      throw new Error("mediaType is required");
+      return {
+        content: [{
+          type: "text",
+          text: "❌ Please provide mediaType. For movies, send 'radarr', for shows send 'sonarr'.",
+        }]
+      };
     }
 
     const results = ["movie", "movies", "radarr",'radar'].includes(mediaType)
@@ -513,7 +523,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       : `${config.sonarr.url}/api/v3/wanted/missing`;
     if(!["serie", "series", "sonar","sonarr"].includes(service))
     {
-      throw new Error("Service can either be 'sonarr' or 'radarr'.");
+      return {
+        content: [{
+          type: "text",
+          text: "❌ Service can either be 'sonarr' or 'radarr'.",
+        }]
+      };
     }
     const apiKey = service === "radarr"
       ? config.radarr.apiKey
@@ -670,7 +685,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             );
           }
           else {
-              throw new Error("Service can either be 'sonarr' or 'radarr'");
+            return {
+              content: [{
+                type: "text",
+                text: "❌ Service can either be 'sonarr' or 'radarr'.",
+              }]
+            };
           }
 
           const queue = queueResponse.data.records;
@@ -906,6 +926,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     default:
+
       throw new Error("Unknown tool");
   }
 });
